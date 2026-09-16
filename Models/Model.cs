@@ -28,6 +28,8 @@ namespace WpfApp1.Models
            ReadIpAddressFromAdapter(adapterName); 
         }
 
+        public void AddItemDirect(IPConfigItem item) => _host.Add(item);
+
         public void RemoveHost(string adapterName, string ipAddress)
         {
             RemoveAdditionalIP(adapterName, ipAddress);

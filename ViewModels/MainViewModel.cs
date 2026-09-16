@@ -18,7 +18,10 @@ namespace WpfApp1.ViewModels
         public ReadOnlyObservableCollection<string> NetworkAdapters => _host.NetAdapters;
         //public ObservableCollection<string> NetworkAdapters { get; } = new ObservableCollection<string>();
 
-        
+        public DelegateCommand PrepareAddCommand { get; }
+        public DelegateCommand<IPConfigItem> AddCommand { get; }
+
+
         private string? _newHostIp;
         public string? newHostIp
         {
@@ -77,7 +80,7 @@ namespace WpfApp1.ViewModels
                 SelectedAdapter = NetworkAdapters[0];
             }
 
-            AddCommand = new DelegateCommand(() =>
+           /* AddCommand = new DelegateCommand(() =>
             {
                 if(!string.IsNullOrEmpty(_selectedAdapter) && !string.IsNullOrEmpty(_newHostIp) && !string.IsNullOrEmpty(_newHostMask) ) {
                     
@@ -85,7 +88,7 @@ namespace WpfApp1.ViewModels
                 }
                 newHostIp = string.Empty;
                 newHostMask = string.Empty;
-            });  
+            });  */
 
 
             RemoveCommand = new DelegateCommand(() => 
@@ -112,9 +115,55 @@ namespace WpfApp1.ViewModels
                                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             });
+
+            PrepareAddCommand = new DelegateCommand(() =>
+            {
+                if (string.IsNullOrEmpty(SelectedAdapter))
+                {
+                    MessageBox.Show("Сначала выберите сетевой адаптер!", "Внимание", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Создаем черновик
+                var newItem = new IPConfigItem
+                {
+                    IPAddress = "0.0.0.0",
+                    SubnetMask = "255.255.255.0",
+                    IsEditing = true
+                };
+
+                // Добавляем напрямую во внутреннюю коллекцию через метод модели Host
+                // Для этого в класс Host добавьте метод: public void AddItemDirect(IPConfigItem item) => _host.Add(item);
+                _host.AddItemDirect(newItem);
+
+                // Автоматически выделяем созданный элемент
+                SelectedHost = newItem;
+            });
+
+            // 2. Команда фиксации IP в Windows при нажатии Enter
+            AddCommand = new DelegateCommand<IPConfigItem>(item =>
+            {
+                if (item != null && !string.IsNullOrEmpty(SelectedAdapter))
+                {
+                    if (string.IsNullOrEmpty(item.IPAddress) || string.IsNullOrEmpty(item.SubnetMask))
+                    {
+                        MessageBox.Show("Поля IP и Маски не могут быть пустыми!", "Ошибка");
+                        return;
+                    }
+
+                    // Добавляем в ОС Windows через PowerShell
+                    _host.AddHost(SelectedAdapter, item.IPAddress, item.SubnetMask);
+
+                    // Выключаем режим редактирования, превращая строки в обычный текст
+                    item.IsEditing = false;
+
+                    // Перечитываем данные из системы для гарантии актуальности
+                    _host.ReadIpAddressFromAdapter(SelectedAdapter);
+                }
+            });
         }
 
-        public DelegateCommand AddCommand { get; }
+        //public DelegateCommand AddCommand { get; }
         public DelegateCommand RemoveCommand { get; }
         public DelegateCommand<IPConfigItem> PingHost { get; }
 

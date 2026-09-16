@@ -6,6 +6,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:local="clr-namespace:WpfApp1"
     xmlns:vm="clr-namespace:WpfApp1.ViewModels"
+    xmlns:vw="clr-namespace:WpfApp1.Views"
     mc:Ignorable="d"
     Title="Custom Window" Height="450" Width="800"
     WindowStyle="None" 
@@ -16,7 +17,12 @@
     <Window.DataContext>
         <vm:MainViewModel/>
     </Window.DataContext>
-    
+
+    <Window.Resources>
+        <!-- Создаем невидимый мост, который будет держать ссылку на MainViewModel окна -->
+        <vw:BindingProxy x:Key="VmProxy" Data="{Binding}" />
+    </Window.Resources>
+
     <Border Background="#1E1E1E" CornerRadius="10" BorderBrush="#333333" BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions>
@@ -42,16 +48,9 @@
 
             <!-- Контент -->
             <Grid Grid.Row="1">
-                <Border BorderBrush="DarkSlateGray" BorderThickness="3" CornerRadius="5" Margin="42,10,620,327">
-                    <StackPanel Background="Transparent" Margin="7,7,7,7">
-                        <TextBox x:Name="iphost" Text="{Binding newHostIp, Mode=TwoWay}"></TextBox>
-                        <TextBox x:Name="maskhost" Text="{Binding newHostMask, Mode=TwoWay}" MouseDoubleClick="FillOut"></TextBox>
-                        <Button Command="{Binding AddCommand}" Content="Добавить" Width="60" Height="20"/>
-                    </StackPanel>
-                </Border>
-
+                
                 <ListBox x:Name="AdapterListBox" ItemsSource="{Binding NetworkAdapters}" 
-                         Margin="10,110,589,10" 
+                         Margin="10,10,589,268" 
                          SelectedItem="{Binding SelectedAdapter}"
                          d:ItemsSource="{d:SampleData ItemCount=5}">
                     <ListBox.ItemTemplate>
@@ -66,116 +65,127 @@
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
-                <Grid Grid.Column="0"> 
-                <ListBox x:Name="IpListBox" ItemsSource="{Binding PublicHost}"
-                    Background="DimGray"
-                    Margin="219,10,422,10"
-                    SelectedItem="{Binding SelectedHost}">
+                <Grid Grid.Column="0">
+                    <ListBox x:Name="IpListBox" 
+         ItemsSource="{Binding PublicHost}"
+         Background="DimGray"
+         Margin="219,10,10,10"
+         SelectedItem="{Binding SelectedHost, Mode=TwoWay}"
+         Grid.IsSharedSizeScope="True"
+         Tag="{Binding ElementName=IpListBox}">
 
-                    <ListBox.InputBindings>
-                        <KeyBinding Key="Delete"
-                                    Command="{Binding RemoveCommand}"
-                                    CommandParameter="{Binding SelectedItem, ElementName=IpListBox}"/>
-
-                    </ListBox.InputBindings>
-                    
-                   <ListBox.ItemTemplate>
-                        <DataTemplate>
-
-                            <Border BorderBrush="DarkSlateGray" BorderThickness="3" CornerRadius="5" Tag="{Binding ElementName=IpListBox}">
-                                <Border.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="Удалить"
-                                                  Command="{Binding PlacementTarget.Tag.DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                  CommandParameter="{Binding}">
-                                            <MenuItem.Icon>
-                                                <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE10A;" Foreground="Red"/>
-                                            </MenuItem.Icon>
-                                        </MenuItem>
-
-                                        <MenuItem Header="Ping Host"
-                                         Command="{Binding PlacementTarget.Tag.DataContext.PingHost, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                         CommandParameter="{Binding}">
-                                            <MenuItem.Icon>
-                                                <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE724;" Foreground="Red"/>
-                                            </MenuItem.Icon>
-                                        </MenuItem>
-                                    </ContextMenu>
-                                </Border.ContextMenu>
-                                
-                                <StackPanel Orientation="Horizontal" Margin="5">
-                                   <TextBlock FontFamily="Segoe MDL2 Assets" 
-                                    Text="&#xE839;" 
-                                    FontSize="26" 
-                                    Foreground="LightBlue" 
-                                    Margin="5,0,10,0" 
-                                    VerticalAlignment="Center"/>
-                                    <StackPanel Height="40" >
-                                        <TextBlock  Text="{Binding IPAddress}" FontWeight="Bold" Foreground="AliceBlue"/>
-                                        <TextBlock  Text="{Binding SubnetMask}" Foreground="AliceBlue"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                   </ListBox.ItemTemplate>
-                </ListBox>
-                </Grid>
-                
-                <Grid Grid.Column="1">
-                    
-                    <ListBox    x:Name="PingListBox" ItemsSource="{Binding PublicHost}"
-                               
-                                Background="DimGray"
-                                Margin="399,10,242,10"
-                                SelectedItem="{Binding SelectedHost}">
+                        <!-- Контекстное меню самого списка -->
+                        <ListBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Добавить новый IP"
+                      Command="{Binding PlacementTarget.Tag.DataContext.PrepareAddCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                    <MenuItem.Icon>
+                                        <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE109;" Foreground="Green"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
 
                         <ListBox.InputBindings>
                             <KeyBinding Key="Delete"
-                            Command="{Binding RemoveCommand}"
-                            CommandParameter="{Binding SelectedItem, ElementName=IpListBox}"/>
-
+                    Command="{Binding RemoveCommand}"
+                    CommandParameter="{Binding SelectedItem, ElementName=IpListBox}"/>
                         </ListBox.InputBindings>
 
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-
-                                <Border BorderBrush="DarkSlateGray" BorderThickness="3" CornerRadius="5" Tag="{Binding ElementName=IpListBox}">
+                                <Border BorderBrush="DarkSlateGray" BorderThickness="3" CornerRadius="5" Background="Transparent" Margin="1">
+                                    <!-- Контекстное меню конкретного элемента -->
                                     <Border.ContextMenu>
                                         <ContextMenu>
-                                            <MenuItem Header="Удалить"
-                                  Command="{Binding PlacementTarget.Tag.DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                  CommandParameter="{Binding}">
+                                            <!-- Пинг через StaticResource -->
+                                            <MenuItem Header="Ping Host"
+                  Command="{Binding Data.PingHost, Source={StaticResource VmProxy}}"
+                  CommandParameter="{Binding}">
                                                 <MenuItem.Icon>
-                                                    <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE10A;" Foreground="Red"/>
+                                                    <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE724;" Foreground="Orange"/>
                                                 </MenuItem.Icon>
                                             </MenuItem>
 
-                                            <MenuItem Header="Ping Host"
-                         Command="{Binding PlacementTarget.Tag.DataContext.PingHost, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                         CommandParameter="{Binding}">
+                                            <!-- Удаление через StaticResource -->
+                                            <MenuItem Header="Удалить"
+                  Command="{Binding Data.RemoveCommand, Source={StaticResource VmProxy}}"
+                  CommandParameter="{Binding}">
                                                 <MenuItem.Icon>
-                                                    <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE724;" Foreground="Red"/>
+                                                    <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE10A;" Foreground="Red"/>
                                                 </MenuItem.Icon>
                                             </MenuItem>
                                         </ContextMenu>
                                     </Border.ContextMenu>
 
-                                    <StackPanel Orientation="Horizontal" Margin="5">
-                                        <TextBlock FontFamily="Segoe MDL2 Assets" 
-                    Text="&#xE839;" 
-                    FontSize="26" 
-                    Foreground="LightBlue" 
-                    Margin="5,0,10,0" 
-                    VerticalAlignment="Center"/>
-                                        <StackPanel Height="40" >
-                                            <TextBlock  Text="{Binding IPAddress}" FontWeight="Bold" Foreground="AliceBlue"/>
-                                            <TextBlock  Text="{Binding SubnetMask}" Foreground="AliceBlue"/>
-                                        </StackPanel>
-                                    </StackPanel>
+                                    <Grid Margin="5" Height="30">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="40"/>
+                                            <ColumnDefinition Width="Auto" SharedSizeGroup="IpCol"/>
+                                            <ColumnDefinition Width="30"/>
+                                            <ColumnDefinition Width="Auto" SharedSizeGroup="MaskCol"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Иконка -->
+                                        <TextBlock Grid.Column="0" FontFamily="Segoe MDL2 Assets" 
+                               Text="&#xE839;" FontSize="24" Foreground="LightBlue" 
+                               VerticalAlignment="Center" HorizontalAlignment="Center"/>
+
+                                        <!-- Колонка IP -->
+                                        <Grid Grid.Column="1" VerticalAlignment="Center">
+                                            <!-- Обычный текст (виден по умолчанию) -->
+                                            <TextBlock x:Name="TxtIp" Text="{Binding IPAddress}" FontWeight="Bold" Foreground="AliceBlue" FontSize="14"/>
+
+                                            <!-- Поле редактирования (скрыто по умолчанию) -->
+                                            <TextBox x:Name="EditIp" 
+                                                     Text="{Binding IPAddress, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                                     Width="130" Background="#2D2D2D" Foreground="White" BorderBrush="Gray" Visibility="Collapsed"
+                                                     Tag="{Binding ElementName=IpListBox}">
+                                                <TextBox.InputBindings>
+                                                    <KeyBinding Key="Enter" 
+                                            Command="{Binding Path=Tag.DataContext.AddCommand, RelativeSource={RelativeSource AncestorType=ListBox}}" 
+                                            CommandParameter="{Binding}"/>
+                                                </TextBox.InputBindings>
+                                            </TextBox>
+                                        </Grid>
+
+                                        <!-- Колонка Маски -->
+                                        <Grid Grid.Column="3" VerticalAlignment="Center">
+                                            <!-- Обычный текст (виден по умолчанию) -->
+                                            <TextBlock x:Name="TxtMask" Text="{Binding SubnetMask}" Foreground="AliceBlue" FontSize="13"/>
+
+                                            <!-- Поле редактирования (скрыто по умолчанию) -->
+                                            <TextBox x:Name="EditMask" Text="{Binding SubnetMask, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                 Width="130" Background="#2D2D2D" Foreground="White" BorderBrush="Gray" Visibility="Collapsed"
+                                                     Tag="{Binding ElementName=IpListBox}">
+                                                <TextBox.InputBindings>
+                                                    <KeyBinding Key="Enter" 
+                                            Command="{Binding Path=Tag.DataContext.AddCommand, RelativeSource={RelativeSource AncestorType=ListBox}}" 
+                                            CommandParameter="{Binding}"/>
+                                                </TextBox.InputBindings>
+                                            </TextBox>
+                                        </Grid>
+                                    </Grid>
                                 </Border>
+
+                                <!-- Триггеры, которые переключают видимость элементов при IsEditing = True -->
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                        <!-- Скрываем TextBlock-и -->
+                                        <Setter TargetName="TxtIp" Property="Visibility" Value="Collapsed"/>
+                                        <Setter TargetName="TxtMask" Property="Visibility" Value="Collapsed"/>
+                                        <!-- Показываем TextBox-ы -->
+                                        <Setter TargetName="EditIp" Property="Visibility" Value="Visible"/>
+                                        <Setter TargetName="EditMask" Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
+
+
+
                 </Grid>
             </Grid>
             
