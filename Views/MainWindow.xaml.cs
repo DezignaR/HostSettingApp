@@ -1,60 +1,129 @@
-﻿using System.Text;
+﻿using System;
+using System.Drawing;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
+using System.Windows.Forms;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using WpfApp1.Models;
 using WpfApp1.ViewModels;
+using TextBox = System.Windows.Controls.TextBox;
 
-namespace WpfApp1
+namespace WpfApp1.Views
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
+        private NotifyIcon _notifyIcon;
+        private bool _isMinimizedToWidget = false;
+
+        private double _originalWidth;
+        private double _originalHeight;
+
         public MainWindow()
         {
             InitializeComponent();
-            
-            
+            InitTrayIcon();
+
+            _originalWidth = this.Width;
+            _originalHeight = this.Height;
         }
 
-        private void Button_Click_Close(object sender, RoutedEventArgs e)
+        private void InitTrayIcon()
         {
-            this.Close();
+            _notifyIcon = new NotifyIcon();
+            _notifyIcon.Icon = SystemIcons.Information;
+            _notifyIcon.Text = "IP Address Manager";
+            _notifyIcon.DoubleClick += (s, e) => RestoreWindow();
+
+            var contextMenu = new ContextMenuStrip();
+            contextMenu.Items.Add("Открыть", null, (s, e) => RestoreWindow());
+            contextMenu.Items.Add("Выход", null, (s, e) => System.Windows.Application.Current.Shutdown());
+            _notifyIcon.ContextMenuStrip = contextMenu;
         }
 
         private void Button_Click_Minimize(object sender, RoutedEventArgs e)
         {
-            this.WindowState = WindowState.Minimized;
+            MinimizeToWidget();
         }
 
-        private void FillOut(object sender, MouseButtonEventArgs e)
+        private void MinimizeToWidget()
         {
-            this.maskhost.Text = "255.255.255.0";
+            _isMinimizedToWidget = true;
+            _notifyIcon.Visible = true;
+
+            this.ShowInTaskbar = false;
+            this.Width = 25;
+            this.Height = 17;
+            this.Topmost = true;
+
+            this.Left = (SystemParameters.PrimaryScreenWidth - this.Width) / 2;
+            this.Top = 0;
+
+            if (this.DataContext is MainViewModel vm)
+            {
+                vm.IsWidgetMode = true;
+            }
         }
 
+        private void RestoreWindow()
+        {
+            if (!_isMinimizedToWidget) return;
+
+            _isMinimizedToWidget = false;
+            _notifyIcon.Visible = true;
+
+            this.Width = _originalWidth;
+            this.Height = _originalHeight;
+            this.Topmost = false;
+            this.ShowInTaskbar = false;
+
+            this.Left = (SystemParameters.PrimaryScreenWidth - this.Width) / 2;
+            this.Top = 0;
+
+            if (this.DataContext is MainViewModel vm)
+            {
+                vm.IsWidgetMode = false;
+            }
+        }
+
+        private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Left)
+            {
+                if (_isMinimizedToWidget)
+                {
+                    RestoreWindow();
+                }
+                else
+                {
+                    this.DragMove();
+                }
+            }
+        }
+
+        private void Button_Click_Close(object sender, RoutedEventArgs e)
+        {
+           /* _notifyIcon.Dispose();
+            System.Windows.Application.Current.Shutdown();*/
+           MinimizeToWidget();
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            _notifyIcon.Dispose();
+            base.OnClosed(e);
+        }
+
+        
         private void TextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-            // Если нажата клавиша Enter
             if (e.Key == System.Windows.Input.Key.Enter)
             {
-                // Получаем TextBox, в котором произошло нажатие
                 if (sender is TextBox textBox && textBox.DataContext is IPConfigItem currentItem)
                 {
-                    // Из DataContext всего окна достаем нашу ViewModel
-                    if (this.DataContext is WpfApp1.ViewModels.MainViewModel viewModel)
+                    if (this.DataContext is MainViewModel viewModel)
                     {
-                        // Принудительно обновляем привязку текста (чтобы зафиксировать последние введенные символы)
                         textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
 
-                        // Вызываем команду добавления и передаем ей наш текущий IPConfigItem
                         if (viewModel.AddCommand.CanExecute(currentItem))
                         {
                             viewModel.AddCommand.Execute(currentItem);
