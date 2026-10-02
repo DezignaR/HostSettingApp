@@ -1,4 +1,7 @@
-﻿using System;
+﻿// ==========================================
+// ФАЙЛ 2: Views/BindingProxy.cs
+// ==========================================
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Windows;

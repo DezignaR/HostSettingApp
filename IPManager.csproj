@@ -11,13 +11,21 @@
 
   <ItemGroup>
     <Compile Remove="bin\**" />
+    <Compile Remove="Converters\**" />
     <Compile Remove="obj\**" />
+    <Compile Remove="Services\**" />
     <EmbeddedResource Remove="bin\**" />
+    <EmbeddedResource Remove="Converters\**" />
     <EmbeddedResource Remove="obj\**" />
+    <EmbeddedResource Remove="Services\**" />
     <None Remove="bin\**" />
+    <None Remove="Converters\**" />
     <None Remove="obj\**" />
+    <None Remove="Services\**" />
     <Page Remove="bin\**" />
+    <Page Remove="Converters\**" />
     <Page Remove="obj\**" />
+    <Page Remove="Services\**" />
   </ItemGroup>
 
   <ItemGroup>
