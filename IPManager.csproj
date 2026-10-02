@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+	<UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="bin\**" />
+    <Compile Remove="Converters\**" />
+    <Compile Remove="obj\**" />
+    <Compile Remove="Services\**" />
+    <EmbeddedResource Remove="bin\**" />
+    <EmbeddedResource Remove="Converters\**" />
+    <EmbeddedResource Remove="obj\**" />
+    <EmbeddedResource Remove="Services\**" />
+    <None Remove="bin\**" />
+    <None Remove="Converters\**" />
+    <None Remove="obj\**" />
+    <None Remove="Services\**" />
+    <Page Remove="bin\**" />
+    <Page Remove="Converters\**" />
+    <Page Remove="obj\**" />
+    <Page Remove="Services\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Prism.Wpf" Version="9.0.537" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="IPManager.slnx" />
+  </ItemGroup>
+
+</Project>
