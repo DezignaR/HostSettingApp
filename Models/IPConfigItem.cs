@@ -45,7 +45,7 @@ namespace WpfApp1.Models
         // Хранит старый IP-адрес для удаления старой привязки при изменении
         public string OldIPAddress { get; set; } = string.Empty;
 
-        private string _statusColor = "LightBlue"; // Дефолтный цвет (синий)
+        private string _statusColor = "#808080"; // Дефолтный цвет (синий)
         public string StatusColor
         {
             get => _statusColor;

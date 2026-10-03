@@ -31,6 +31,7 @@ namespace WpfApp1.ViewModels
         // Команды
         public DelegateCommand RefreshCommand { get; }
         public DelegateCommand PrepareAddCommand { get; }
+        
         public DelegateCommand<IPConfigItem> EditElementCommand { get; }
         public DelegateCommand<IPConfigItem> AddCommand { get; }
         public DelegateCommand<IPConfigItem> RemoveCommand { get; }
@@ -38,6 +39,7 @@ namespace WpfApp1.ViewModels
         // Команды контекстного меню Ping Host
         public DelegateCommand<IPConfigItem> StartPingCommand { get; }
         public DelegateCommand<IPConfigItem> StopPingCommand { get; }
+      
 
         private string? _selectedAdapter;
         public string? SelectedAdapter
@@ -199,17 +201,21 @@ namespace WpfApp1.ViewModels
                 {
                     while (!cts.Token.IsCancellationRequested)
                     {
+                        target.StatusColor = "#808080";
                         bool isAlive = await Host.PingAddressAsync(target.IPAddress);
 
                         // Меняем цвет в UI потоке
                         System.Windows.Application.Current.Dispatcher.Invoke(() =>
                         {
+                            
                             target.StatusColor = isAlive ? "LightGreen" : "Red";
                         });
 
                         try
                         {
                             await Task.Delay(2000, cts.Token); // Опрос каждые 2 секунды
+                            
+
                         }
                         catch (TaskCanceledException) { break; }
                     }
@@ -223,13 +229,15 @@ namespace WpfApp1.ViewModels
                 if (target != null)
                 {
                     StopPingLogic(target);
+                    target.StatusColor = "#808080";
                 }
             });
-        }
 
-        // Этот метод вызывается из MainWindow.xaml.cs при выходе, чтобы остановить пинги
-        public void StopAllPings()
-        {
+            
+        
+        }
+        public void StopAllPings ()
+            {
             foreach (var token in _pingTokens.Values)
             {
                 token.Cancel();
@@ -244,7 +252,9 @@ namespace WpfApp1.ViewModels
                 _pingTokens.Remove(target.IPAddress);
             }
             target.IsActivePinging = false;
-            target.StatusColor = "LightBlue"; // Сброс цвета к дефолтному
+            target.StatusColor = "#808080"; // Сброс цвета к дефолтному
         }
     }
+        // Этот метод вызывается из MainWindow.xaml.cs при выходе, чтобы остановить пинги
+       
 }
