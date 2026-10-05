@@ -1,6 +1,4 @@
-﻿// ==========================================
-// ФАЙЛ 3: Models/Host.cs (ЧАСТЬ 1)
-// ==========================================
+﻿
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -135,9 +133,7 @@ namespace WpfApp1.Models
                 Debug.WriteLine($"Ошибка записи JSON: {ex.Message}");
             }
         }
-        // ==========================================
-        // ФАЙЛ 3: Models/Host.cs (ЧАСТЬ 2)
-        // ==========================================
+
         private static int ConvertMaskToPrefix(string subnetMask)
         {
             try
@@ -338,6 +334,14 @@ namespace WpfApp1.Models
             catch
             {
                 return false;
+            }
+        }
+
+        public void RemovePingHost(IPConfigItem item)
+        {
+            if (item != null && _host.Contains(item))
+            {
+                _host.Remove(item);
             }
         }
     }

@@ -1,6 +1,4 @@
-﻿// ==========================================
-// ФАЙЛ 4: ViewModels/MainViewModel.cs
-// ==========================================
+﻿
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -173,7 +171,11 @@ namespace WpfApp1.ViewModels
                     {
                         // Останавливаем пинг перед удалением, если он работал
                         StopPingLogic(itemToRemove);
-                        _host.ReadIpAddressFromAdapter("Ping Host"); // Перезагрузит список без этого элемента
+
+                        // Удаляем айтем из коллекции внутри Host
+                        _host.RemovePingHost(itemToRemove);
+
+                        // Сохраняем обновленную коллекцию (уже без этого айтема) в JSON
                         _host.SavePingHostsToJson();
                     }
                     else if (!string.IsNullOrEmpty(itemToRemove.IPAddress))

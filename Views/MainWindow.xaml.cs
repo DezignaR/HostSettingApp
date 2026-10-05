@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Drawing;
-using System.Runtime.InteropServices; // Добавлено для DllImport
+using System.Runtime.InteropServices; 
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Input;
-using System.Windows.Interop; // Добавлено для HwndSource
+using System.Windows.Interop;
 using WpfApp1.Models;
 using WpfApp1.ViewModels;
 

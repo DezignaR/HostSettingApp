@@ -113,7 +113,7 @@
 
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border BorderBrush="#666666" BorderThickness="3" CornerRadius="5" Background="Transparent" Margin="1" HorizontalAlignment="Stretch">
+                                <Border x:Name="HostItem" BorderBrush="#666666" BorderThickness="3" CornerRadius="5" Background="Transparent" Margin="1" HorizontalAlignment="Stretch">
                                     <Border.ContextMenu>
                                         <ContextMenu>
  <!--PING-->                                           

@@ -1,7 +1,4 @@
-﻿// ==========================================
-// ФАЙЛ 1: Models/IPConfigItem.cs
-// ==========================================
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Windows;
@@ -40,12 +37,10 @@ namespace WpfApp1.Models
             set => SetProperty(ref _isPinging, value);
         }
 
-        // --- НОВЫЕ СВОЙСТВА ДЛЯ РЕАЛИЗАЦИИ ТРЕБОВАНИЙ ---
-
         // Хранит старый IP-адрес для удаления старой привязки при изменении
         public string OldIPAddress { get; set; } = string.Empty;
 
-        private string _statusColor = "#808080"; // Дефолтный цвет (синий)
+        private string _statusColor = "#808080"; // Дефолтный цвет
         public string StatusColor
         {
             get => _statusColor;
