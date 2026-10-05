@@ -29,7 +29,7 @@ namespace WpfApp1.ViewModels
         // Команды
         public DelegateCommand RefreshCommand { get; }
         public DelegateCommand PrepareAddCommand { get; }
-        
+
         public DelegateCommand<IPConfigItem> EditElementCommand { get; }
         public DelegateCommand<IPConfigItem> AddCommand { get; }
         public DelegateCommand<IPConfigItem> RemoveCommand { get; }
@@ -37,7 +37,7 @@ namespace WpfApp1.ViewModels
         // Команды контекстного меню Ping Host
         public DelegateCommand<IPConfigItem> StartPingCommand { get; }
         public DelegateCommand<IPConfigItem> StopPingCommand { get; }
-      
+
 
         private string? _selectedAdapter;
         public string? SelectedAdapter
@@ -196,33 +196,61 @@ namespace WpfApp1.ViewModels
 
                 var cts = new CancellationTokenSource();
                 _pingTokens[target.IPAddress] = cts;
+
+                // Безопасно выставляем флаг старта в UI-потоке
                 target.IsActivePinging = true;
 
                 // Запуск бесконечной фоновой задачи пинга
                 Task.Run(async () =>
                 {
-                    while (!cts.Token.IsCancellationRequested)
+                    // Фиксируем токен локально для потока
+                    CancellationToken localToken = cts.Token;
+
+                    while (!localToken.IsCancellationRequested)
                     {
-                        target.StatusColor = "#808080";
-                        bool isAlive = await Host.PingAddressAsync(target.IPAddress);
-
-                        // Меняем цвет в UI потоке
-                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            
-                            target.StatusColor = isAlive ? "LightGreen" : "Red";
-                        });
-
                         try
                         {
-                            await Task.Delay(2000, cts.Token); // Опрос каждые 2 секунды
-                            
+                            // 1. Сбрасываем цвет в серый перед началом отправки пакета (в UI-потоке)
+                            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                target.StatusColor = "#808080";
+                            });
 
+                            // 2. Выполняем сетевой запрос асинхронно в фоновом потоке
+                            bool isAlive = await Host.PingAddressAsync(target.IPAddress);
+
+                            // 3. Проверяем, не отменили ли задачу, пока шел пинг
+                            if (localToken.IsCancellationRequested) break;
+
+                            // 4. Обновляем результат в UI-потоке
+                            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                target.StatusColor = isAlive ? "LightGreen" : "Red";
+                            });
+
+                            // Ожидаем 2 секунды перед следующим пингом
+                            await Task.Delay(2000, localToken);
                         }
-                        catch (TaskCanceledException) { break; }
+                        catch (TaskCanceledException)
+                        {
+                            break;
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Ошибка в потоке пинга: {ex.Message}");
+                            break;
+                        }
                     }
                 }, cts.Token);
             });
+
+
+
+
 
             // Выключение Ping запроса
             StopPingCommand = new DelegateCommand<IPConfigItem>(item =>
@@ -235,28 +263,62 @@ namespace WpfApp1.ViewModels
                 }
             });
 
-            
-        
+
+
         }
-        public void StopAllPings ()
-            {
+        public void StopAllPings()
+        {
+            // Шаг 1: Сначала ТОЛЬКО отменяем все токены, чтобы фоновые потоки вышли из циклов
             foreach (var token in _pingTokens.Values)
             {
-                token.Cancel();
+                try
+                {
+                    token.Cancel();
+                }
+                catch (ObjectDisposedException) { }
             }
+
+            // Шаг 2: Даем микропаузу (несколько миллисекунд), чтобы потоки успели среагировать и завершиться
+            // Но так как Dispose при закрытии критичен, мы можем вызвать его через безопасный блок try-catch,
+            // либо полностью доверить очистку операционной системе, так как процесс всё равно уничтожается.
+            // Самый надежный и не падающий вариант для OnExit:
+            foreach (var token in _pingTokens.Values)
+            {
+                try
+                {
+                    token.Dispose();
+                }
+                catch { } // Подавляем любые ошибки деструктуризации при выходе
+            }
+
             _pingTokens.Clear();
         }
         private void StopPingLogic(IPConfigItem target)
         {
+            if (target == null) return;
+
             if (!string.IsNullOrEmpty(target.IPAddress) && _pingTokens.TryGetValue(target.IPAddress, out var cts))
             {
-                cts.Cancel();
-                _pingTokens.Remove(target.IPAddress);
+                try
+                {
+                    cts.Cancel();
+                    // Перед Dispose убираем токен из словаря, чтобы фоновый поток 
+                    // больше не мог получить к нему доступ через коллекцию
+                    _pingTokens.Remove(target.IPAddress);
+
+                    cts.Dispose();
+                }
+                catch (ObjectDisposedException) { }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Ошибка при остановке пинга: {ex.Message}");
+                }
             }
+
             target.IsActivePinging = false;
-            target.StatusColor = "#808080"; // Сброс цвета к дефолтному
+            target.StatusColor = "#808080";
         }
     }
         // Этот метод вызывается из MainWindow.xaml.cs при выходе, чтобы остановить пинги
-       
-}
+
+    }

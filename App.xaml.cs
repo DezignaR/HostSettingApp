@@ -48,9 +48,24 @@ namespace WpfApp1
             // Освобождаем Mutex при закрытии основного приложения
             if (_mutex != null)
             {
-                _mutex.ReleaseMutex();
-                _mutex.Dispose();
+                try
+                {
+                    // Пытаемся освободить мьютекс (сработает, если поток совпадает)
+                    _mutex.ReleaseMutex();
+                }
+                catch (ApplicationException ex)
+                {
+                    // Игнорируем ошибку, если поток не является владельцем мьютекса
+                    System.Diagnostics.Debug.WriteLine($"Мьютекс освобождается автоматически: {ex.Message}");
+                }
+                finally
+                {
+                    // Гарантированно уничтожаем объект и освобождаем системный дескриптор
+                    _mutex.Dispose();
+                    _mutex = null;
+                }
             }
+
             base.OnExit(e);
         }
     }
