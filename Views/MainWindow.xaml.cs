@@ -1,42 +1,239 @@
-﻿using System.Text;
+﻿using System;
+using System.Drawing;
+using System.Runtime.InteropServices; 
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
+using System.Windows.Forms;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+using System.Windows.Interop;
+using WpfApp1.Models;
 using WpfApp1.ViewModels;
 
-namespace WpfApp1
+namespace WpfApp1.Views
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
+        private NotifyIcon _notifyIcon = null!;
+        private bool _isMinimizedToWidget = false;
+        private double _originalWidth;
+        private double _originalHeight;
+
+        // Регистрация уникального системного сообщения для взаимодействия между копиями приложения
+        public const string UniqueMessageName = "WpfApp1_Restore_Unique_Message_String";
+        public static readonly int WM_SHOWME = RegisterWindowMessage(UniqueMessageName);
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern int RegisterWindowMessage(string lpString);
+
         public MainWindow()
         {
             InitializeComponent();
-            
-            
+            InitTrayIcon();
+            _originalWidth = this.Width;
+            _originalHeight = this.Height;
         }
 
-        private void Button_Click_Close(object sender, RoutedEventArgs e)
+        // Подписываемся на сообщения Windows при инициализации источника окна
+        protected override void OnSourceInitialized(EventArgs e)
         {
-            this.Close();
+            base.OnSourceInitialized(e);
+            HwndSource source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
+            source?.AddHook(WndProc);
         }
 
-        private void Button_Click_Minimize(object sender, RoutedEventArgs e)
+        // Перехватчик сообщений Windows
+        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
-            this.WindowState = WindowState.Minimized;
+            if (msg == WM_SHOWME)
+            {
+                RestoreWindowFromExternal();
+                handled = true;
+            }
+            return IntPtr.Zero;
         }
 
-        private void FillOut(object sender, MouseButtonEventArgs e)
+        private void InitTrayIcon()
         {
-            this.maskhost.Text = "255.255.255.0";
+            var resourceUri = new Uri("pack://application:,,,/Resources/icons8.ico", UriKind.Absolute);
+            var iconStream = System.Windows.Application.GetResourceStream(resourceUri)?.Stream;
+
+            _notifyIcon = new NotifyIcon
+            {
+                // Создаем объект Icon из потока
+                Icon = iconStream != null ? new Icon(iconStream) : null,
+                Text = "IP Address Manager",
+                Visible = true // ОБЯЗАТЕЛЬНО для WPF, иначе иконка будет скрыта
+            };
+            var contextMenu = new ContextMenuStrip();
+            contextMenu.Items.Add("Открыть", null, (s, e) => RestoreWindow());
+            contextMenu.Items.Add("Выход", null, (s, e) => ShutdownApplication());
+            _notifyIcon.ContextMenuStrip = contextMenu;
         }
+
+        private void Button_Click_Minimize(object sender, RoutedEventArgs e) => MinimizeToWidget();
+
+        private void MinimizeToWidget()
+        {
+            _isMinimizedToWidget = true; _notifyIcon.Visible = true;
+            this.ShowInTaskbar = false; this.Width = 25; this.Height = 14; this.Topmost = true;
+            this.Left = (SystemParameters.PrimaryScreenWidth - this.Width) / 2; this.Top = 0;
+            if (this.DataContext is MainViewModel vm) vm.IsWidgetMode = true;
+        }
+        //метод для фокусировки курсора на поле ввода Ip адреса
+        private void EditIp_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.TextBox textBox)
+            {
+                // Проверяем, что элемент действительно находится в режиме редактирования
+                if (textBox.DataContext is IPConfigItem item && item.IsEditing)
+                {
+                    // Переносим фокус на TextBox
+                    textBox.Focus();
+
+                    // Выделяем весь текст (0.0.0.0), чтобы пользователь мог сразу вводить новый IP
+                    textBox.SelectAll();
+                }
+            }
+        }
+       
+        // Метод запускает/отключает Ping по двойному клику по айтему
+        private void HostItem_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            // Проверяем, что это был именно ДВОЙНОЙ клик ЛЕВОЙ кнопкой мыши
+            if (e.ChangedButton == System.Windows.Input.MouseButton.Left && e.ClickCount == 2)
+            {
+                if (sender is System.Windows.Controls.Border border && border.DataContext is IPConfigItem currentItem)
+                {
+                    // Проверяем, что элемент в режиме пинга и пинг еще не активен
+                    if (currentItem.IsPinging && !currentItem.IsActivePinging)
+                    {
+                        if (this.DataContext is MainViewModel viewModel)
+                        {
+                            if (viewModel.StartPingCommand.CanExecute(currentItem))
+                            {
+                                viewModel.StartPingCommand.Execute(currentItem);
+                            }
+                        }
+                    }
+                    else if (currentItem.IsPinging && currentItem.IsActivePinging)
+                    {
+                        if (this.DataContext is MainViewModel viewModel)
+                        {
+                            if (viewModel.StopPingCommand.CanExecute(currentItem))
+                            {
+                                viewModel.StopPingCommand.Execute(currentItem);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        //Метод открытия основного окна
+        private void RestoreWindow()
+        {
+            if (!_isMinimizedToWidget) return;
+            _isMinimizedToWidget = false; _notifyIcon.Visible = true;
+            this.Width = _originalWidth; this.Height = _originalHeight; this.Topmost = false;
+            this.Left = (SystemParameters.PrimaryScreenWidth - this.Width) / 2; this.Top = 0;
+            if (this.DataContext is MainViewModel vm) vm.IsWidgetMode = false;
+        }
+
+        // Метод восстановления, вызываемый при попытке запустить вторую копию
+        public void RestoreWindowFromExternal()
+        {
+            // Сначала возвращаем из вашего кастомного виджета
+            if (_isMinimizedToWidget)
+            {
+                RestoreWindow();
+            }
+
+            // Если окно было стандартно свернуто в панель задач
+            if (this.WindowState == WindowState.Minimized)
+            {
+                this.WindowState = WindowState.Normal;
+            }
+
+            // Активируем окно и выводим поверх других приложений
+            this.Activate();
+            this.Focus();
+        }
+        
+        //Метод для перетаскивания окна
+        private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton == MouseButton.Left) { if (_isMinimizedToWidget) RestoreWindow(); else this.DragMove(); }
+        }
+
+        //Действие при нажатиина "Крестик"
+        private void Button_Click_Close(object sender, RoutedEventArgs e) => MinimizeToWidget();
+
+        //Метод для сохранения настроек по клавише Enter
+        private void TextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter)
+            {
+                if (sender is System.Windows.Controls.TextBox textBox && textBox.DataContext is IPConfigItem currentItem)
+                {
+                    if (this.DataContext is MainViewModel viewModel)
+                    {
+                        textBox.GetBindingExpression(System.Windows.Controls.TextBox.TextProperty)?.UpdateSource();
+
+                        if (viewModel.AddCommand.CanExecute(currentItem))
+                        {
+                            viewModel.AddCommand.Execute(currentItem);
+                        }
+                    }
+                }
+            }
+        }
+
+        private void ShutdownApplication()
+        {
+            if (this.DataContext is MainViewModel vm) vm.StopAllPings();
+            _notifyIcon.Dispose();
+            System.Windows.Application.Current.Shutdown();
+        }
+
+        protected override void OnClosed(EventArgs e) { _notifyIcon.Dispose(); base.OnClosed(e); }
+
+        private void IpListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is System.Windows.Controls.ListBox listBox)
+            {
+                // ВАЖНО: Проверяем, что кликнули по пустому месту ListBox, 
+                // а не по конкретной карточке хоста (ListBoxItem).
+                // Если кликнули по карточке, Оригинальный Источник (OriginalSource) будет внутри неё.
+                if (e.OriginalSource is DependencyObject obj)
+                {
+                    // Ищем, находится ли клик внутри какого-либо элемента ListBoxItem
+                    var listBoxItem = FindAncestor<System.Windows.Controls.ListBoxItem>(obj);
+
+                    // Если кликнули НЕ по элементу (а по свободному пространству списка)
+                    if (listBoxItem == null)
+                    {
+                        if (this.DataContext is MainViewModel viewModel)
+                        {
+                            // ИСПРАВЛЕНО: Добавлен вызов метода Execute с передачей null
+                            if (viewModel.PrepareAddCommand.CanExecute())
+                            {
+                                viewModel.PrepareAddCommand.Execute();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Вспомогательный метод для поиска родительского контейнера в визуальном дереве
+        private static T? FindAncestor<T>(DependencyObject current) where T : DependencyObject
+        {
+            while (current != null)
+            {
+                if (current is T ancestor) return ancestor;
+                current = System.Windows.Media.VisualTreeHelper.GetParent(current);
+            }
+            return null;
+        }
+
     }
 }
