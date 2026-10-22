@@ -133,29 +133,39 @@ namespace WpfApp1.ViewModels
 
                 if (string.IsNullOrEmpty(item.IPAddress) || string.IsNullOrEmpty(item.SubnetMask))
                 {
-                    System.Windows.MessageBox.Show("Поля IP и Маски не могут быть пустыми!", "Ошибка");
+                    System.Windows.MessageBox.Show("Поля IP и Маски не могут быть пустыми!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
+                }
+
+                // Проверяем валидность формата перед передачей в модель (для реальных адаптеров)
+                if (SelectedAdapter != "Ping Host")
+                {
+                    // Используем логику парсинга IP-адресов
+                    if (!System.Net.IPAddress.TryParse(item.IPAddress.Trim(), out _) ||
+                        !System.Net.IPAddress.TryParse(item.SubnetMask.Trim(), out _))
+                    {
+                        System.Windows.MessageBox.Show("Введен некорректный формат IP-адреса или маски подсети!", "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        // Возвращаем в режим редактирования, чтобы пользователь мог исправить
+                        item.IsEditing = true;
+                        return;
+                    }
                 }
 
                 item.IsEditing = false;
 
                 if (SelectedAdapter == "Ping Host")
                 {
-                    // Логика для Ping Host: сохраняем в JSON
                     item.OldIPAddress = item.IPAddress;
                     _host.SavePingHostsToJson();
                 }
                 else
                 {
-                    // Логика для реального адаптера
                     if (string.IsNullOrEmpty(item.OldIPAddress) || item.OldIPAddress == "0.0.0.0")
                     {
-                        // Абсолютно новый адрес
                         _host.AddHost(SelectedAdapter, item.IPAddress, item.SubnetMask);
                     }
                     else
                     {
-                        // Изменение уже добавленного адреса
                         _host.UpdateHostIP(SelectedAdapter, item.OldIPAddress, item.IPAddress, item.SubnetMask);
                     }
                 }
@@ -248,18 +258,14 @@ namespace WpfApp1.ViewModels
                 }, cts.Token);
             });
 
-
-
-
-
             // Выключение Ping запроса
             StopPingCommand = new DelegateCommand<IPConfigItem>(item =>
             {
                 var target = item ?? SelectedHost;
                 if (target != null)
-                {
-                    StopPingLogic(target);
+                {   
                     target.StatusColor = "#808080";
+                    StopPingLogic(target);
                 }
             });
 
@@ -268,7 +274,6 @@ namespace WpfApp1.ViewModels
         }
         public void StopAllPings()
         {
-            // Шаг 1: Сначала ТОЛЬКО отменяем все токены, чтобы фоновые потоки вышли из циклов
             foreach (var token in _pingTokens.Values)
             {
                 try
@@ -278,17 +283,13 @@ namespace WpfApp1.ViewModels
                 catch (ObjectDisposedException) { }
             }
 
-            // Шаг 2: Даем микропаузу (несколько миллисекунд), чтобы потоки успели среагировать и завершиться
-            // Но так как Dispose при закрытии критичен, мы можем вызвать его через безопасный блок try-catch,
-            // либо полностью доверить очистку операционной системе, так как процесс всё равно уничтожается.
-            // Самый надежный и не падающий вариант для OnExit:
             foreach (var token in _pingTokens.Values)
             {
                 try
                 {
                     token.Dispose();
                 }
-                catch { } // Подавляем любые ошибки деструктуризации при выходе
+                catch { }
             }
 
             _pingTokens.Clear();
@@ -302,10 +303,7 @@ namespace WpfApp1.ViewModels
                 try
                 {
                     cts.Cancel();
-                    // Перед Dispose убираем токен из словаря, чтобы фоновый поток 
-                    // больше не мог получить к нему доступ через коллекцию
                     _pingTokens.Remove(target.IPAddress);
-
                     cts.Dispose();
                 }
                 catch (ObjectDisposedException) { }
@@ -318,7 +316,6 @@ namespace WpfApp1.ViewModels
             target.IsActivePinging = false;
             target.StatusColor = "#808080";
         }
+        
     }
-        // Этот метод вызывается из MainWindow.xaml.cs при выходе, чтобы остановить пинги
-
     }

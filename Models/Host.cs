@@ -164,7 +164,7 @@ namespace WpfApp1.Models
             int prefixLength = ConvertMaskToPrefix(subnetMask);
 
             string command = $"New-NetIPAddress -InterfaceAlias '{cleanAdapter}' " +
-                             $"-IPAddress '{cleanIp}' -PrefixLength {prefixLength} -SkipAsSource $true";
+                             $"-IPAddress '{cleanIp}' -PrefixLength {prefixLength}";
 
             ProcessStartInfo psi = new ProcessStartInfo
             {

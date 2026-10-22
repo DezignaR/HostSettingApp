@@ -29,12 +29,20 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="Resources\icons8.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.PowerShell.SDK" Version="7.6.6" />
     <PackageReference Include="Prism.Wpf" Version="9.0.537" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="IPManager.slnx" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\icons8.ico" />
   </ItemGroup>
 
 </Project>
